@@ -1,0 +1,45 @@
+
+# Project: Criar - AI Website Builder
+# Development Summary & Roadmap
+
+## 1. Current State (What We've Built)
+- **Modern Landing Page**: High-impact aesthetic with gradients, micro-animations, and clear value proposition.
+- **AI-Powered Core**: Integrated Gemini API for generating functionality-rich websites from text prompts.
+- **Project Dashboard**: Interface to select project types (Landing pages, E-commerce, etc.) and define specific requirements (Content, Style, Functionality).
+- **Code Generation Engine**: 
+  - Generates separated HTML, CSS, and JavaScript files.
+  - Ensures clean, semantic, and production-ready code.
+- **Developer Experience**:
+  - Live Code Viewer with syntax highlighting.
+  - "Download All" functionality for easy export.
+  - Structure for "Open Preview" (Live preview feature).
+
+## 2. Core Features (The "Wow" Factors)
+- **Personal Codespace**: 
+  - A dedicated, persistent environment for every user.
+  - Not just a generator, but a workspace to iterate and refine code.
+- **Integrated Live Preview**:
+  - Split-screen view allowing users to see their changes in real-time.
+  - Seamless toggle between code and visual representation.
+
+## 3. Future Roadmap & Architecture
+- **Authentication**: 
+  - Integration with **Clerk** for secure, seamless user sign-up and login.
+- **Database & Backend**:
+  - **Prisma** ORM for type-safe database access.
+  - **Supabase** for scalable, relational database hosting.
+- **Project Persistence**:
+  - Save projects and forms as unique URL links.
+  - Shareable previews for collaboration.
+- **Advanced Form Handling**:
+  - Automatic backend generation for contact forms (storing submissions directly to Supabase).
+
+## 4. User Flow (The Idea)
+1.  **Landing**: User arrives, sees "Build Stunning Websites with AI".
+2.  **Prompt**: User enters a dashboard, selects a category (e.g., Portfolio), and describes their vision.
+3.  **Generation**: AI constructs the code in real-time ("Forging Code...").
+4.  **Workspace**: User lands in their "Personal Codespace".
+    - Left panel: Code editor (HTML/CSS/JS).
+    - Right panel: Live Preview of the site.
+5.  **Refinement**: User tweaks the prompt or code.
+6.  **Save/Deploy**: User saves the project (generated unique URL) or exports the files.

@@ -1,0 +1,301 @@
+import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+// gemini-2.5-flash = VALID. gemini-3-flash-preview = DOES NOT EXIST (404).
+const GEMINI_MODEL = "gemini-3-flash-preview";
+const CREDIT_COSTS = { initial: 0, refinement: 0 };
+
+const MAX_RETRIES = 1;
+
+const CATEGORY_STRUCTURES = {
+    portfolio: "Hero with animated tagline + CTA, About Me with photo + bio, Projects Gallery (filterable by tech/tag), Skills with visual bars/icons, Work Experience timeline, Testimonials carousel, Contact form with social links.",
+    restaurant: "Full-bleed cinematic hero with 'Reserve a Table' CTA, Featured dishes grid (with dietary tags), Our Story section with chef photo, Ambience photo gallery, Opening hours map, Reservation form.",
+    "e-commerce": "Hero banner with promo, Products grid with category filters + price sort, Product card with quick-view modal, Customer Reviews section, Email Newsletter CTA, Cart sidebar.",
+    blog: "Featured article hero (large card), Recent posts grid (3-col), Category tag filter bar, Author bio card, Email subscribe section.",
+    event: "Hero with live JS countdown timer, Highlights / Why Attend cards, Speaker lineup grid with photos, Tabbed schedule, Venue info + map, Ticket tier cards + Registration form.",
+    gym: "Bold high-contrast hero with class CTA, Programs grid with icons, Trainer profile cards, Pricing tier table, Before-After gallery, Free trial signup form.",
+    travel: "Immersive parallax hero with destination search, Destinations cards grid, Tour packages with pricing, Video section, Testimonials, Booking CTA widget.",
+    startup: "Animated hero with product screenshot mockup, Problem → Solution section, Feature highlights grid, Pricing tiers (toggle monthly/annual), Team grid, Press logos strip, Email waitlist CTA.",
+    education: "Hero with enroll CTA, Course cards grid with ratings and price, How it Works (3-step visual), Instructor profile cards, Student Testimonials carousel, FAQ accordion, Pricing plans.",
+    photography: "Full-screen hero slideshow, Filterable masonry gallery (by genre), About section with awards, Services + pricing table, Client testimonials, Booking request form.",
+    general: "Bold hero with primary CTA + secondary CTA, Feature highlights grid (3-col), About / Mission section, Social proof / Testimonials, Contact form.",
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  OUTPUT FORMAT
+//  Order: HTML → JS → CSS
+//  Reason: JS (routing logic) is more critical than CSS. If truncation happens,
+//  we'd rather lose some CSS than lose the navigation JS entirely.
+// ─────────────────────────────────────────────────────────────────────────────
+const OUTPUT_FORMAT = `
+OUTPUT FORMAT — READ CAREFULLY AND FOLLOW EXACTLY
+Your response must start with ===HTML=== and contain nothing before it.
+
+===HTML===
+(complete index.html here)
+===JS===
+(complete script.js here)
+===CSS===
+(complete style.css here)
+===END===
+
+MANDATORY OUTPUT RULES:
+1. Start IMMEDIATELY with ===HTML=== — zero text before it.
+2. Do NOT use markdown code fences anywhere (no \`\`\`html or \`\`\`).
+3. NEVER put <link rel="stylesheet"> in the HTML — CSS is injected separately.
+4. NEVER put <script src="script.js"> in the HTML — JS is injected separately.
+5. External CDN links (Google Fonts <link>, icon libraries) ARE allowed in HTML.
+6. Write COMPLETE, UNTRUNCATED code for all 3 sections.
+`.trim();
+
+function buildInitialPrompt(category, mainPrompt) {
+    const structure = CATEGORY_STRUCTURES[category?.toLowerCase()] || CATEGORY_STRUCTURES.general;
+
+    return `You are a world-class senior frontend engineer and UI/UX designer. Your task is to generate a visually stunning, fully functional ${category} website — the kind that wins design awards.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ USER REQUEST
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Category: ${category}
+Description: "${mainPrompt}"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ REQUIRED PAGE SECTIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${structure}
+Always include: Home, About, Contact.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ARCHITECTURE (MANDATORY)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+HTML (index.html):
+• Single file — all sections as <section class="page" id="sectionName"> inside <main>
+• Every section has class="page" and is hidden by default via CSS
+• Sticky navbar with links to EVERY section (use <a href="#sectionName">) also a styled footer
+• Mobile hamburger menu (toggles .nav-open class on body)
+• Add a button in the footer that scrolls to the top of the page
+• Add a css reference as style.css and js reference as script.js in the html file
+• Semantic HTML5 tags: <header>, <nav>, <main>, <section>, <footer>, <article>
+• NO inline styles. NO onclick=... attributes. NO <script src="script.js">. NO <link href="*.css">
+• Google Fonts: add <link> tags in <head> for a premium font pairing
+
+JS (script.js):
+• Hash-based router — on DOMContentLoaded + hashchange events:
+  1. Hide ALL .page sections (set display: none)
+  2. Show ONLY the section with id matching window.location.hash (strip #)
+  3. Default to 'home' if no hash
+  4. Update active class on nav links
+  5. Scroll window to top on each navigation
+• Mobile menu: toggle .nav-open on hamburger click, close on nav link click
+• Scroll animations: IntersectionObserver for elements with class "reveal"
+• Smooth micro-interactions: hover effects, button ripples
+• NO jQuery. Pure ES6+.
+
+CSS (style.css):
+• @import Google Fonts at line 1
+• CSS custom properties (variables) for ALL colors, fonts, spacing — never hardcode values
+• Fully responsive — mobile-first breakpoints at 480px, 768px, 1024px
+• .page { display: none; } and .page.active { display: block; }
+• Stunning design: deep dark backgrounds OR rich brand colors, gradient accents
+• Glassmorphism cards (backdrop-filter: blur), subtle shadows and borders
+• Animated gradients, smooth hover transitions (0.3s ease)
+• Grid and Flexbox layouts — never use floats or tables
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ DESIGN QUALITY STANDARDS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Images: https://picsum.photos/800/600?random=1 through ?random=20 (vary the numbers)
+• All content must be REAL and specific to the request — no "Lorem ipsum", no placeholder names
+• Every section must have a compelling heading, subheading, and real body content
+• At least one animated element per section (fade-in, slide-in, counter, etc.)
+
+${OUTPUT_FORMAT}`;
+}
+
+function buildRefinementPrompt(currentCode, refinementPrompts, freeformPrompt) {
+    const parts = [];
+    if (refinementPrompts?.content) parts.push(`CONTENT CHANGES: ${refinementPrompts.content}`);
+    if (refinementPrompts?.color) parts.push(`DESIGN/COLOR CHANGES: ${refinementPrompts.color}`);
+    if (refinementPrompts?.functionality) parts.push(`FUNCTIONALITY CHANGES: ${refinementPrompts.functionality}`);
+    if (freeformPrompt?.trim()) parts.push(`GENERAL CHANGES: ${freeformPrompt}`);
+
+    const html = (currentCode?.html || '').substring(0, 12000);
+    const js = (currentCode?.js || '').substring(0, 5000);
+    const css = (currentCode?.css || '').substring(0, 8000);
+
+    return `You are an expert frontend developer. Refine the existing website code below precisely.
+
+REQUESTED CHANGES:
+${parts.length ? parts.join('\n') : 'Improve overall quality, polish, and visual design.'}
+
+EXISTING CODE:
+===HTML===
+${html}
+===JS===
+${js}
+===CSS===
+${css}
+===END===
+
+INSTRUCTIONS:
+1. Apply ALL requested changes precisely and completely.
+2. Preserve everything that was NOT asked to change.
+3. Return COMPLETE code for all 3 files — never truncate.
+4. Keep the same hash-based routing architecture.
+
+${OUTPUT_FORMAT}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  PARSER — 3-layer fallback
+//  Order matches the output format: HTML → JS → CSS
+// ─────────────────────────────────────────────────────────────────────────────
+function parseDelimitedResponse(rawText) {
+    if (!rawText) throw new Error('Empty AI response.');
+
+    // Strip markdown fences
+    const text = rawText
+        .replace(/\r\n/g, '\n')
+        .replace(/^```[a-z]*\n?/im, '')
+        .replace(/```\s*$/im, '')
+        .trim();
+
+    // Layer 1: delimiter-based extraction
+    // $ in lookahead is critical — handles truncated responses with no end marker
+    const htmlMatch = text.match(/===HTML===\s*([\s\S]*?)(?====JS===|===CSS===|===END===|$)/i);
+    const jsMatch = text.match(/===JS===\s*([\s\S]*?)(?====CSS===|===END===|$)/i);
+    const cssMatch = text.match(/===CSS===\s*([\s\S]*?)(?====END===|$)/i);
+
+    let html = (htmlMatch?.[1] || '').trim();
+    let js = (jsMatch?.[1] || '').trim();
+    let css = (cssMatch?.[1] || '').trim();
+
+    console.log(`[Parser L1] html:${html.length} js:${js.length} css:${css.length}`);
+
+    if (!html) {
+        console.error('[Parser] No HTML found. First 500 chars:\n', text.substring(0, 500));
+        throw new Error('AI did not follow the output format — no HTML content found.');
+    }
+
+    // Layer 2: extract JS from inline <script> tags if missing
+    if (!js) {
+        const scriptRx = /<script(?![^>]*\bsrc\b)[^>]*>([\s\S]*?)<\/script>/gi;
+        const hits = [...html.matchAll(scriptRx)];
+        if (hits.length > 0) {
+            js = hits.map(m => m[1].trim()).filter(Boolean).join('\n\n');
+            html = html.replace(scriptRx, '');
+            console.log(`[Parser L2] Extracted JS from <script> tags: ${js.length} chars`);
+        }
+    }
+
+    // Layer 3: extract CSS from inline <style> tags if missing
+    if (!css) {
+        const styleRx = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+        const hits = [...html.matchAll(styleRx)];
+        if (hits.length > 0) {
+            css = hits.map(m => m[1].trim()).filter(Boolean).join('\n\n');
+            html = html.replace(styleRx, '');
+            console.log(`[Parser L3] Extracted CSS from <style> tags: ${css.length} chars`);
+        }
+    }
+
+    // Post-process: remove local file references that 404 in the iframe
+    html = html
+        .replace(/<link[^>]+href=["'][^"']*\.css["'][^>]*\/?>/gi, '')
+        .replace(/<script[^>]+src=["'][^"']*script\.js["'][^>]*>\s*<\/script>/gi, '');
+
+    console.log(`[Parser Final] html:${html.length} js:${js.length} css:${css.length}`);
+    return { html, css, js };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  MAIN ROUTE HANDLER
+// ─────────────────────────────────────────────────────────────────────────────
+export async function POST(request) {
+    try {
+        const body = await request.json().catch(() => ({}));
+        const {
+            category = 'general',
+            prompt: mainPrompt = '',
+            mode = 'initial',
+            currentCode = null,
+            refinementPrompts = {},
+            freeformPrompt = '',
+        } = body;
+
+        if (mode === 'initial' && !mainPrompt?.trim()) {
+            return NextResponse.json({ error: 'A prompt is required.' }, { status: 400 });
+        }
+
+        const cookieStore = await cookies();
+        let credits = parseInt(cookieStore.get('user-credits')?.value || '50', 10);
+        const cost = CREDIT_COSTS[mode] || 0;
+
+        if (credits < cost) {
+            return NextResponse.json({ error: `Insufficient credits. Need ${cost}, have ${credits}.` }, { status: 403 });
+        }
+
+        const apiKey = process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY2;
+        if (!apiKey) {
+            return NextResponse.json({ error: 'Gemini API key not configured. Add GEMINI_API_KEY to .env.local' }, { status: 500 });
+        }
+
+        const prompt = mode === 'initial'
+            ? buildInitialPrompt(category, mainPrompt)
+            : buildRefinementPrompt(currentCode, refinementPrompts, freeformPrompt);
+
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({
+            model: GEMINI_MODEL,
+            generationConfig: {
+                temperature: mode === 'initial' ? 0.8 : 0.4,
+                maxOutputTokens: 8192,
+            },
+        });
+
+        let resultData = null;
+        let lastError = null;
+
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+            if (attempt > 0) {
+                console.log(`[Gemini] retry ${attempt}…`);
+                await new Promise(r => setTimeout(r, 1500));
+            }
+            try {
+                const result = await model.generateContent(prompt);
+                const rawText = result.response.text();
+                console.log(`[Gemini] attempt ${attempt + 1} — raw length: ${rawText.length}`);
+                resultData = parseDelimitedResponse(rawText);
+                if (resultData.html) break;
+            } catch (err) {
+                lastError = err;
+                console.warn(`[Gemini] attempt ${attempt + 1} failed:`, err.message);
+            }
+        }
+
+        if (!resultData?.html) {
+            return NextResponse.json({
+                error: 'Generation failed. Please try again.',
+                details: lastError?.message || 'Unknown error',
+            }, { status: 500 });
+        }
+
+        credits -= cost;
+        cookieStore.set('user-credits', String(credits), { path: '/', maxAge: 60 * 60 * 24 * 30, httpOnly: false });
+
+        return NextResponse.json({
+            html: resultData.html,
+            css: resultData.css,
+            js: resultData.js,
+            creditsRemaining: credits,
+            cost,
+            mode,
+        });
+
+    } catch (error) {
+        console.error('[Generate] Unhandled error:', error);
+        return NextResponse.json({ error: 'Internal server error', details: error?.message }, { status: 500 });
+    }
+}

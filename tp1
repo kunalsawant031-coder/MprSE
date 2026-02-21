@@ -1,0 +1,484 @@
+"use client"
+import React, { useState, useEffect, useRef } from 'react';
+
+const PROMPT_SUGGESTIONS = {
+    Portfolio: [
+        "Build a dark-themed portfolio for Alex Chen, a senior React/Node.js developer. Include an animated hero with typing effect, filterable projects grid with GitHub links, animated skill bars, work timeline, and a glowing contact form.",
+        "Create a minimal white-space portfolio for Maya Rodriguez, a UI/UX designer. Feature a masonry project gallery, case study cards, design tools showcase, client testimonials, and elegant contact section.",
+        "Design a vibrant portfolio for Liam Kumar, a fullstack developer & open source contributor. Include a particle background hero, GitHub stats widget, blog section, tech stack icons, and animated sections.",
+    ],
+    Restaurant: [
+        "Build a luxury Italian restaurant website called 'Trattoria Bellagio'. Dark marble aesthetic, cinematic food photography hero, animated menu with wine pairings, chef story section, and open table reservation form.",
+        "Create a trendy fusion street-food restaurant 'Neon Bites'. Neon sign aesthetic, scrolling menu ticker, Instagram-style gallery, food truck location map, and online order CTA.",
+        "Design a fine-dining Japanese restaurant 'Sakura Zen'. Minimalist bamboo aesthetic, omakase tasting menu, chef's table experience, sake pairing guide, reservation form with date picker.",
+    ],
+    "E-commerce": [
+        "Build 'KickVault' — a premium sneaker store with a dark theme. Hero with featured drops, product grid with hover 3D effect, size guide modal, reviews with star ratings, wishlist feature, and cart sidebar.",
+        "Create 'Verde Botanicals' — a sustainable skincare shop. Clean white & green aesthetic, ingredient spotlight cards, routine builder quiz, subscription box section, and eco-packaging story.",
+        "Design 'TechDrop' — a gadget store with flash sales. Dynamic countdown timer, product comparison table, bundle deals section, live chat widget, and loyalty points tracker.",
+    ],
+    Blog: [
+        "Build 'ByteThoughts' — a dark-mode developer blog. Code syntax highlighting cards, #tags filter system, reading time estimates, author bio with GitHub stats, email newsletter with free ebook CTA.",
+        "Create 'The Design Edit' — a UI/UX design blog. Magazine-style layout, category pills, featured interview section, design resource downloads, and premium membership CTA.",
+        "Design 'Wander Words' — a travel blog. Full-bleed photo headers, destination map, gear reviews, itinerary cards, and YouTube video embeds.",
+    ],
+    Event: [
+        "Build 'SoundWave 2025' — a summer music festival. Countdown timer hero, artist lineup grid with Spotify links, stage schedule tabs, camping info, and tiered ticket purchase section.",
+        "Create 'DevConf 2025' — a developer conference. Speaker bios with talk abstracts, workshop schedule, sponsor tiers, live stream section, and early bird registration form.",
+        "Design 'GlowUp Fest' — a wellness & beauty expo. Pastel gradient theme, session schedule, exhibitor map, beauty masterclass bookings, and gift bag giveaway signup.",
+    ],
+    Gym: [
+        "Build 'IronForge Gym' — a hardcore powerlifting gym. Black & red theme, class schedule with live availability, trainer profiles with certifications, transformation gallery, and membership plan cards.",
+        "Create 'ZenFit Studio' — a yoga & pilates studio. Soft gradient theme, class timetable, instructor bios, workshop calendar, merchandise shop, and 7-day free trial signup.",
+        "Design 'Apex Performance' — a high-end personal training studio. Stats counter section, bespoke program cards, client transformation slider, nutrition coaching add-on, and consultation booking.",
+    ],
+    Travel: [
+        "Build 'Wanderlust Co.' — a luxury travel agency. Parallax destination hero, curated experience cards, interactive world map, private jet charter section, and concierge contact form.",
+        "Create 'BackpackBuddy' — a budget travel platform. Destination cost calculator, hostel review cards, packing checklist tool, travel insurance comparison, and community forum teaser.",
+        "Design 'TrueNorth Expeditions' — an adventure travel company. Arctic expedition hero video, tour difficulty ratings, gear partnership section, eco-guide profiles, and deposit booking flow.",
+    ],
+    Startup: [
+        "Build 'Nexus AI' — a B2B AI analytics SaaS. Animated data dashboard mockup hero, three-step onboarding, feature comparison table, enterprise vs. starter pricing toggle, team grid, and VC investors strip.",
+        "Create 'Flowly' — a project management tool startup. Animated product screenshot hero, integrations grid, testimonials from Fortune 500 logos, transparent pricing tiers, and waitlist CTA.",
+        "Design 'GreenGrid' — a cleantech startup. Climate impact stats counter, solution explainer with animated diagrams, partnership logos, impact report download, and investor contact form.",
+    ],
+    Education: [
+        "Build 'SkillForge Academy' — an online coding bootcamp. Course category pills, instructor profile cards with ratings, curriculum accordion, student outcome stats, income share agreement explainer, and enroll CTA.",
+        "Create 'MentorMatch' — a 1-on-1 tutoring platform. Subject search bar, tutor cards with hourly rates, how-it-works steps, parent testimonials, trial session booking, and safety badge section.",
+        "Design 'LitLearn' — a children's literacy app landing page. Bright playful theme, age group selector, reading level explainer, parent dashboard preview, school partnership section, and app download CTA.",
+    ],
+    Photography: [
+        "Build a photography portfolio for Emma Walsh, a wedding & portrait photographer. Full-bleed hero slider, genre-filtered masonry gallery, wedding package pricing cards, client testimonials, and booking form with calendar.",
+        "Create a photography site for 'Urban Lens Studio' specialising in architectural photography. Dark minimal theme, project case studies, editorial credits, licensing info, and commission inquiry form.",
+        "Design a portfolio for Marcus Kim, a travel & wildlife photographer. Magazine-style layout, expedition blog, print shop section, workshop calendar, and Instagram feed embed.",
+    ],
+};
+
+const CreateGen = () => {
+    const [projectType, setProjectType] = useState('Portfolio');
+    const [prompt, setPrompt] = useState('');
+
+    const [isChatOpen, setIsChatOpen] = useState(false);
+    const [chatMessages, setChatMessages] = useState([]);
+    const [chatInput, setChatInput] = useState('');
+    const chatEndRef = useRef(null);
+
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [generatedCode, setGeneratedCode] = useState(null);
+    const [viewMode, setViewMode] = useState('preview');
+    const [error, setError] = useState(null);
+
+    const [activeRefinementTab, setActiveRefinementTab] = useState('content');
+    const [refinementInputs, setRefinementInputs] = useState({ content: '', color: '', functionality: '' });
+
+    const [credits, setCredits] = useState(null);
+    const [activeVideoIndex, setActiveVideoIndex] = useState(0);
+    const [videoSources, setVideoSources] = useState(['videos/portfolio.mp4', null]);
+
+    const categorySettings = {
+        "Portfolio": { color: "shadow-[#00bfff] border-[#00bfff]", accentText: "text-[#00bfff]", accentBg: "bg-[#00bfff]", btn: "bg-gradient-to-r from-[#00bfff] to-blue-600", placeholder: "Build a modern developer portfolio for John Doe...", video: "videos/portfolio.mp4", bg: "bg-slate-950/70" },
+        "Restaurant": { color: "shadow-orange-500 border-orange-600", accentText: "text-orange-400", accentBg: "bg-orange-400", btn: "bg-gradient-to-r from-orange-500 to-red-600", placeholder: "Create a fine-dining Italian restaurant called 'La Bella Vita'...", video: "restaurant.mp4", bg: "bg-orange-950/80" },
+        "E-commerce": { color: "shadow-cyan-400 border-cyan-400", accentText: "text-cyan-400", accentBg: "bg-cyan-400", btn: "bg-gradient-to-r from-cyan-400 to-emerald-500", placeholder: "Build an online sneaker store called 'KickVault'...", video: "ecommerce.mp4", bg: "bg-cyan-950/40" },
+        "Blog": { color: "shadow-purple-500/50 border-purple-500", accentText: "text-purple-400", accentBg: "bg-purple-400", btn: "bg-gradient-to-r from-purple-500 to-indigo-600", placeholder: "Design a minimal tech blog called 'ByteThoughts'...", video: "videos/blog.mp4", bg: "bg-slate-900/80" },
+        "Event": { color: "shadow-pink-500/50 border-pink-500", accentText: "text-pink-400", accentBg: "bg-pink-400", btn: "bg-gradient-to-r from-pink-500 to-rose-600", placeholder: "Create a music festival page for 'SoundWave 2025'...", video: "videos/event.mp4", bg: "bg-slate-900/80" },
+        "Gym": { color: "shadow-none border-white", accentText: "text-white", accentBg: "bg-white", btn: "bg-white text-black hover:bg-gray-200", placeholder: "Build a gym website for 'IronForge Gym'...", video: "gym.mp4", bg: "bg-black/90" },
+        "Travel": { color: "shadow-none border-blue-400", accentText: "text-blue-400", accentBg: "bg-blue-400", btn: "bg-gradient-to-b from-sky-400 to-blue-500", placeholder: "Design a travel agency site for 'Wanderlust Co.'...", video: "travel.mp4", bg: "bg-sky-900/40" },
+        "Startup": { color: "shadow-cyan-500/30 border-cyan-400", accentText: "text-cyan-400", accentBg: "bg-cyan-400", btn: "bg-gradient-to-r from-cyan-400 to-blue-500", placeholder: "Create a SaaS startup landing page for 'Nexus AI'...", video: "ecommerces.mp4", bg: "bg-slate-950/70" },
+        "Education": { color: "shadow-none border-amber-800", accentText: "text-amber-200", accentBg: "bg-amber-200", btn: "bg-amber-900 text-amber-50", placeholder: "Build a learning platform called 'SkillForge Academy'...", video: "education.mp4", bg: "bg-[#2b1f18]" },
+        "Photography": { color: "shadow-none border-[#8fd694]", accentText: "text-[#8fd694]", accentBg: "bg-[#8fd694]", btn: "bg-[#8fd694] text-black", placeholder: "Create a photography portfolio for 'Lens & Light Studio'...", video: "photography.mp4", bg: "bg-green-950/20" },
+    };
+
+    const current = categorySettings[projectType] || categorySettings["Portfolio"];
+
+    useEffect(() => {
+        const nextIndex = activeVideoIndex === 0 ? 1 : 0;
+        setVideoSources(prev => { const s = [...prev]; s[nextIndex] = current.video; return s; });
+        setActiveVideoIndex(nextIndex);
+    }, [projectType]);
+
+    useEffect(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [chatMessages]);
+
+    // ── Smart chatbot with prompt suggestions ──────────────────────────────────
+    const handleSendMessage = () => {
+        if (!chatInput.trim()) return;
+        const userMsg = chatInput.trim();
+        setChatMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+        setChatInput('');
+
+        setTimeout(() => {
+            const lower = userMsg.toLowerCase();
+            let aiText = '';
+            let suggestions = null;
+
+            if (lower.includes('suggest') || lower.includes('idea') || lower.includes('prompt') || lower.includes('example') || lower.includes('help') || lower.includes('what should')) {
+                const options = PROMPT_SUGGESTIONS[projectType] || PROMPT_SUGGESTIONS['Portfolio'];
+                aiText = `Here are 3 great prompt ideas for a **${projectType}** site. Click "Use This" to set any directly as your prompt:`;
+                suggestions = options;
+            } else if (lower.includes('color') || lower.includes('theme') || lower.includes('palette')) {
+                aiText = `For a **${projectType}** site, great palette ideas:\n• Dark navy + electric cyan (futuristic)\n• Charcoal + amber gold (premium)\n• Deep forest + mint (fresh/eco)\n• Jet black + crimson (bold/dramatic)\n\nMention your preferred palette in the prompt!`;
+            } else if (lower.includes('section') || lower.includes('page') || lower.includes('include')) {
+                const sections = { Portfolio: 'Hero, About, Projects, Skills, Experience, Testimonials, Contact', Restaurant: 'Hero, Menu, Story, Gallery, Hours, Reservations', 'E-commerce': 'Hero, Products, Categories, Reviews, Newsletter, Cart', Blog: 'Featured, Posts Grid, Categories, Author, Subscribe', Event: 'Hero+Countdown, Lineup, Schedule, Venue, Tickets', Gym: 'Hero, Programs, Trainers, Pricing, Gallery, Signup', Travel: 'Hero, Destinations, Tours, Testimonials, Booking', Startup: 'Hero, Features, Pricing, Team, Press, Waitlist', Education: 'Hero, Courses, How it works, Instructors, FAQ, Pricing', Photography: 'Hero, Gallery, About, Services, Pricing, Booking' };
+                aiText = `Key sections for a **${projectType}** site:\n${sections[projectType] || 'Hero, About, Features, Contact'}\n\nInclude specific names and details for best results!`;
+            } else if (lower.includes('style') || lower.includes('design') || lower.includes('look')) {
+                aiText = `Popular styles for **${projectType}**:\n• **Glassmorphism** — frosted glass cards, blur effects\n• **Neumorphism** — soft shadows, tactile feel\n• **Dark luxury** — deep backgrounds, gold accents\n• **Minimalist** — white space, bold typography\n• **Brutalist** — raw, bold, unconventional\n\nMention your preferred style in the prompt!`;
+            } else if (lower.includes('animation') || lower.includes('effect') || lower.includes('motion')) {
+                aiText = `Animation ideas for your ${projectType} site:\n• Typing/typewriter effect in hero\n• Parallax scrolling backgrounds\n• Number counters on scroll\n• Hover card flip/lift effects\n• Staggered fade-in for grid items\n• Gradient color-shift on scroll\n\nMention these in your prompt and I'll build them in!`;
+            } else {
+                aiText = `I can help! Try asking me:\n• "Show me prompt suggestions"\n• "What sections should I include?"\n• "What color palette should I use?"\n• "What animation effects are popular?"\n• "What design style fits ${projectType}?"`;
+            }
+
+            setChatMessages(prev => [...prev, { role: 'ai', text: aiText, suggestions }]);
+        }, 600);
+    };
+
+    const activeRefinementInput = refinementInputs[activeRefinementTab];
+    const setRefinementInput = (val) => setRefinementInputs(prev => ({ ...prev, [activeRefinementTab]: val }));
+
+    const generateSite = async (mode = 'initial') => {
+        if (mode === 'initial' && !prompt.trim()) return alert("Please describe your vision first!");
+        if (mode === 'refinement' && !Object.values(refinementInputs).some(v => v.trim())) {
+            return alert("Please describe what you'd like to change!");
+        }
+        setIsGenerating(true);
+        setError(null);
+        try {
+            const response = await fetch('/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ category: projectType, mode, prompt, currentCode: generatedCode, refinementPrompts: refinementInputs }),
+            });
+            const data = await response.json();
+            if (!response.ok || data.error) throw new Error(data.details || data.error || `Server error ${response.status}`);
+            if (!data.html) throw new Error('AI returned no HTML. Please try again.');
+            setGeneratedCode({ html: data.html, css: data.css || '', js: data.js || '' });
+            if (data.creditsRemaining !== undefined) setCredits(data.creditsRemaining);
+            if (mode === 'refinement') setRefinementInputs({ content: '', color: '', functionality: '' });
+        } catch (err) {
+            console.error(err);
+            setError(err.message || "Something went wrong. Please try again.");
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const downloadFile = (content, filename) => {
+        const el = document.createElement("a");
+        el.href = URL.createObjectURL(new Blob([content], { type: 'text/plain' }));
+        el.download = filename;
+        document.body.appendChild(el); el.click(); document.body.removeChild(el);
+    };
+    const downloadAll = () => {
+        if (!generatedCode) return;
+        downloadFile(generatedCode.html, 'index.html');
+        if (generatedCode.css) downloadFile(generatedCode.css, 'style.css');
+        if (generatedCode.js) downloadFile(generatedCode.js, 'script.js');
+    };
+
+    // ── iframe builder ──────────────────────────────────────────────────────────
+    // IMPORTANT: buildSrcDoc uses the `generatedCode` state variable directly.
+    // The data: URI script approach requires allow-same-origin in iframe sandbox.
+    const buildSrcDoc = () => {
+        if (!generatedCode) return '';
+        const { html = '', css = '', js = '' } = generatedCode;
+
+        // Encode AI JS as base64 data: URI so the browser parses it as a real script.
+        // This means DOMContentLoaded and hashchange events work correctly — unlike
+        // new Function() which executes synchronously with no event support.
+        const jsB64 = js
+            ? btoa(encodeURIComponent(js).replace(/%([0-9A-F]{2})/g, (_, p) => String.fromCharCode(parseInt(p, 16))))
+            : '';
+
+        const head = `<base target="_self">
+<style>
+/* Injected page-visibility system — AI JS controls .active class */
+.page { display: none !important; }
+.page.active { display: block !important; }
+/* AI-generated styles */
+${css}
+body { margin: 0; padding: 0; box-sizing: border-box; overflow-x: hidden; }
+</style>`;
+
+        // Bootstrap: intercepts hash clicks + triggers initial hashchange after AI script loads
+        const boot = `<script>
+(function(){
+  document.addEventListener('click', function(e){
+    var a = e.target.closest('a[href^="#"]');
+    if(!a) return;
+    e.preventDefault();
+    var h = a.getAttribute('href');
+    history.replaceState(null,'',h);
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+  }, true);
+  function go(){
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    window.scrollTo(0,0);
+  }
+  window.addEventListener('load', go);
+  setTimeout(go, 200);
+})();
+<\/script>`;
+
+        const aiScript = jsB64 ? `<script src="data:text/javascript;base64,${jsB64}"><\/script>` : '';
+
+        if (!/<html/i.test(html)) {
+            return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">${head}</head><body>${html}${aiScript}${boot}</body></html>`;
+        }
+
+        let doc = html;
+        doc = /<\/head>/i.test(doc) ? doc.replace(/<\/head>/i, head + '\n</head>') : head + doc;
+        doc = /<\/body>/i.test(doc) ? doc.replace(/<\/body>/i, aiScript + '\n' + boot + '\n</body>') : doc + '\n' + aiScript + '\n' + boot;
+        return doc;
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  WORKSPACE VIEW (after generation)
+    // ═══════════════════════════════════════════════════════════════════════════
+    if (generatedCode) {
+        return (
+            <div className="flex h-screen bg-neutral-950 text-white overflow-hidden font-sans">
+
+                {/* LEFT — PREVIEW / CODE */}
+                <div className="flex-1 flex flex-col relative border-r border-white/10 min-w-0">
+                    <div className="h-14 bg-black border-b border-white/10 flex items-center justify-between px-4 shrink-0">
+                        <div className="flex items-center gap-2">
+                            <span className={`w-3 h-3 rounded-full ${current.accentBg}`}></span>
+                            <span className="font-bold text-sm tracking-wide">{projectType} Project</span>
+                        </div>
+                        <div className="flex bg-neutral-900 rounded-lg p-1">
+                            <button onClick={() => setViewMode('preview')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${viewMode === 'preview' ? 'bg-white text-black' : 'text-neutral-400 hover:text-white'}`}>Live Preview</button>
+                            <button onClick={() => setViewMode('code')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${viewMode === 'code' ? 'bg-white text-black' : 'text-neutral-400 hover:text-white'}`}>Code View</button>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <button onClick={downloadAll} className="text-xs text-neutral-400 hover:text-white transition-colors border border-white/10 hover:border-white/30 px-3 py-1.5 rounded-lg">↓ Download All</button>
+                            {credits !== null && <span className="text-xs text-neutral-400 font-mono">{credits} Credits Left</span>}
+                        </div>
+                    </div>
+
+                    <div className="flex-1 bg-neutral-900 relative overflow-hidden">
+                        {viewMode === 'preview' ? (
+                            <iframe
+                                key={JSON.stringify(generatedCode)}
+                                srcDoc={buildSrcDoc()}
+                                className="w-full h-full border-none bg-white"
+                                title="Live Preview"
+                                sandbox="allow-scripts allow-modals allow-forms allow-same-origin"
+                            />
+                        ) : (
+                            <div className="w-full h-full overflow-auto p-4 font-mono text-xs text-neutral-300">
+                                <h3 className="text-purple-400 font-bold mb-2 pb-2 border-b border-white/5">index.html</h3>
+                                <pre className="mb-8 p-4 bg-black rounded-lg border border-white/10 whitespace-pre-wrap break-all">{generatedCode.html}</pre>
+                                <h3 className="text-blue-400 font-bold mb-2 pb-2 border-b border-white/5">style.css</h3>
+                                <pre className="mb-8 p-4 bg-black rounded-lg border border-white/10 whitespace-pre-wrap break-all">{generatedCode.css}</pre>
+                                <h3 className="text-yellow-400 font-bold mb-2 pb-2 border-b border-white/5">script.js</h3>
+                                <pre className="p-4 bg-black rounded-lg border border-white/10 whitespace-pre-wrap break-all">{generatedCode.js}</pre>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* RIGHT — REFINEMENT PANEL */}
+                <div className="w-[380px] shrink-0 flex flex-col bg-black/80 backdrop-blur-xl border-l border-white/10">
+                    <div className="p-5 border-b border-white/10">
+                        <h2 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-500">Refine & Polish</h2>
+                        <p className="text-xs text-gray-400 mt-1">Found something off? Fix it for <span className="text-green-400 font-bold">1 credit</span>.</p>
+                    </div>
+
+                    <div className="flex-1 p-5 flex flex-col gap-5 overflow-y-auto">
+                        <div className="flex flex-col gap-2">
+                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Target Area</label>
+                            <div className="flex gap-2">
+                                {['content', 'color', 'functionality'].map(tab => (
+                                    <button key={tab} onClick={() => setActiveRefinementTab(tab)}
+                                        className={`flex-1 py-2 rounded-lg text-xs font-bold capitalize transition-all border ${activeRefinementTab === tab ? `${current.color} ${current.accentText} bg-white/5` : 'border-white/10 text-gray-500 hover:border-white/30 hover:text-gray-300'}`}>
+                                        {tab}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="flex-1 flex flex-col min-h-[120px]">
+                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">{activeRefinementTab} Instructions</label>
+                            <textarea
+                                className="flex-1 bg-neutral-900/50 border border-white/10 rounded-xl p-4 text-sm text-white resize-none outline-none focus:border-purple-500/50 transition-colors placeholder-white/20 min-h-[120px]"
+                                placeholder={{ content: '"Change the hero headline and add a pricing section"', color: '"Make it a warm amber palette with dark backgrounds"', functionality: '"Add smooth scroll animations and a working contact form"' }[activeRefinementTab]}
+                                value={activeRefinementInput}
+                                onChange={(e) => setRefinementInput(e.target.value)}
+                            />
+                        </div>
+
+                        {error && (
+                            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+                                <p className="text-red-400 text-xs font-bold mb-1">Generation Failed</p>
+                                <p className="text-red-300/80 text-xs">{error}</p>
+                            </div>
+                        )}
+
+                        <div className="bg-neutral-900/50 rounded-xl p-4 border border-white/5">
+                            <div className="flex justify-between items-center mb-3">
+                                <span className="text-xs text-gray-400">Estimated Cost</span>
+                                <span className="text-xs font-bold text-green-400">1 Credit</span>
+                            </div>
+                            <button onClick={() => generateSite('refinement')} disabled={isGenerating}
+                                className={`w-full py-3 rounded-lg font-bold text-sm transition-all shadow-lg ${current.btn} hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed`}>
+                                {isGenerating ? <span className="flex items-center justify-center gap-2"><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Refining…</span> : 'Apply Changes'}
+                            </button>
+                        </div>
+
+                        <button onClick={() => { setGeneratedCode(null); setError(null); }} className="text-xs text-center text-gray-500 hover:text-white transition-colors">← Start New Project</button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  INITIAL INPUT VIEW
+    // ═══════════════════════════════════════════════════════════════════════════
+    return (
+        <div className="relative min-h-screen text-white overflow-x-hidden font-sans selection:bg-white/20">
+
+            {/* Video Background */}
+            <div className="fixed inset-0 -z-20 overflow-hidden">
+                {videoSources.map((src, idx) => (
+                    <video key={`${idx}-${src}`} autoPlay muted loop playsInline src={src}
+                        className={`absolute w-full h-full object-cover transition-opacity duration-1000 ${activeVideoIndex === idx ? 'opacity-100' : 'opacity-0'}`} />
+                ))}
+            </div>
+            <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.25),rgba(0,0,0,0.60))]" />
+
+            {/* Main Content */}
+            <div className="relative z-10 max-w-[1100px] mx-auto pt-24 pb-20 px-5 text-center">
+                <h1 className="text-5xl md:text-7xl font-semibold mb-4 tracking-tight">
+                    Just imagine. <span className={`${current.accentText} transition-all duration-500 drop-shadow-lg`}>And we behold.</span>
+                </h1>
+                <p className="text-blue-100/70 text-lg md:text-xl mb-12 max-w-2xl mx-auto">
+                    One prompt. Infinite possibilities. Describe your vision, and we build the code.
+                </p>
+
+                {/* Input Box */}
+                <div className={`p-8 rounded-[30px] border backdrop-blur-xl transition-all duration-500 shadow-2xl ${current.bg} ${current.color}`}>
+                    <textarea
+                        className="w-full bg-transparent border-none text-white text-xl md:text-2xl resize-none outline-none h-32 placeholder-white/30"
+                        placeholder={current.placeholder}
+                        value={prompt}
+                        onChange={(e) => setPrompt(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) generateSite('initial'); }}
+                    />
+
+                    {error && (
+                        <div className="mb-4 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-left">
+                            <p className="text-red-400 text-sm font-bold">⚠ Generation Failed</p>
+                            <p className="text-red-300/80 text-xs mt-1">{error}</p>
+                        </div>
+                    )}
+
+                    <div className="mt-6 flex flex-wrap justify-between items-center gap-4 border-t border-white/10 pt-6">
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs font-bold text-white/50 uppercase tracking-wider">Vision Type</span>
+                            <select value={projectType} onChange={(e) => setProjectType(e.target.value)}
+                                className="bg-black/40 border border-white/20 px-4 py-2 rounded-full text-sm outline-none cursor-pointer hover:bg-black/60 transition-colors">
+                                {Object.keys(categorySettings).map(cat => <option key={cat} value={cat} className="bg-slate-900 text-white">{cat}</option>)}
+                            </select>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <span className="text-xs font-mono text-white/40">Cost: 5 Credits · Ctrl+Enter</span>
+                            <button onClick={() => generateSite('initial')} disabled={isGenerating}
+                                className={`${current.btn} px-8 py-3 rounded-full font-bold transition-all hover:scale-105 active:scale-95 shadow-xl disabled:opacity-50 disabled:cursor-not-allowed`}>
+                                {isGenerating ? (
+                                    <span className="flex items-center gap-2">
+                                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                        Forging Code…
+                                    </span>
+                                ) : "Build Now →"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Category Grid */}
+                <div className="mt-16 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                    {Object.keys(categorySettings).map(cat => (
+                        <div key={cat} onClick={() => setProjectType(cat)}
+                            className={`p-5 rounded-2xl cursor-pointer transition-all duration-300 border ${projectType === cat ? `${current.color} bg-white/10 scale-105 z-10` : 'bg-black/40 border-white/5 hover:border-white/20 hover:bg-black/60'}`}>
+                            <h3 className={`text-sm font-bold uppercase tracking-wider ${projectType === cat ? current.accentText : 'text-white/60'}`}>{cat}</h3>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* ── AI Prompt Assistant Chatbot ── */}
+            <div className="fixed bottom-8 right-8 z-50">
+                <button onClick={() => setIsChatOpen(!isChatOpen)}
+                    className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl shadow-2xl transition-all hover:scale-110 ${current.btn}`}>
+                    {isChatOpen ? '✕' : '🤖'}
+                </button>
+
+                {isChatOpen && (
+                    <div className="absolute bottom-20 right-0 w-[360px] bg-zinc-950 rounded-3xl overflow-hidden flex flex-col shadow-[0_20px_60px_rgba(0,0,0,0.6)] border border-white/10" style={{ maxHeight: '520px' }}>
+                        {/* Header */}
+                        <div className={`${current.btn} p-4 flex justify-between items-center shrink-0`}>
+                            <span className="flex items-center gap-2 font-bold text-sm">
+                                <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                                Prompt Assistant
+                            </span>
+                            <button onClick={() => setIsChatOpen(false)} className="hover:opacity-70 text-lg">✕</button>
+                        </div>
+
+                        {/* Messages */}
+                        <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-black/40" style={{ maxHeight: '340px' }}>
+                            {chatMessages.length === 0 && (
+                                <div className="text-center">
+                                    <p className="text-white/50 italic text-xs mb-3">Hi! I help you write perfect prompts. Try:</p>
+                                    {["Show me prompt ideas", "What sections should I add?", "Best color palette?"].map(q => (
+                                        <button key={q} onClick={() => { setChatInput(q); }}
+                                            className="block w-full text-left text-xs rounded-lg px-3 py-2 mb-1.5 bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all">
+                                            💬 {q}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            {chatMessages.map((msg, i) => (
+                                <div key={i} className={msg.role === 'user' ? 'text-right' : 'text-left'}>
+                                    {msg.role === 'user' ? (
+                                        <span className="inline-block px-3 py-2 rounded-2xl rounded-tr-none text-xs max-w-[85%] bg-blue-600 text-white">{msg.text}</span>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            <div className="inline-block px-3 py-2 rounded-2xl rounded-tl-none text-xs max-w-[95%] bg-white/10 text-white/90 border border-white/5 whitespace-pre-line">{msg.text}</div>
+                                            {/* Prompt suggestion cards with "Use This" button */}
+                                            {msg.suggestions && msg.suggestions.map((s, si) => (
+                                                <div key={si} className="bg-white/5 border border-white/10 rounded-xl p-3 text-left group hover:border-white/25 transition-all">
+                                                    <p className="text-white/70 text-xs leading-relaxed mb-2 line-clamp-3">{s}</p>
+                                                    <button
+                                                        onClick={() => { setPrompt(s); setIsChatOpen(false); }}
+                                                        className={`w-full py-1.5 rounded-lg text-xs font-bold transition-all ${current.btn} hover:opacity-90`}>
+                                                        ✓ Use This Prompt
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                            <div ref={chatEndRef} />
+                        </div>
+
+                        {/* Input */}
+                        <div className="flex border-t border-white/10 bg-zinc-900 p-2 shrink-0">
+                            <input type="text" className="flex-1 bg-transparent p-2.5 text-sm outline-none text-white placeholder-white/30"
+                                placeholder="Ask for prompt tips…"
+                                value={chatInput}
+                                onChange={(e) => setChatInput(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} />
+                            <button onClick={handleSendMessage} className={`px-4 font-bold text-sm ${current.accentText} hover:opacity-80 transition-opacity`}>Send</button>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+export default CreateGen;
