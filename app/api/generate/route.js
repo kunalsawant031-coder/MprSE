@@ -1,513 +1,420 @@
-// [AUDITED] CODE GENERATOR API - ROBUST VERSION
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  FREE AI PROVIDER OPTIONS (use whichever key you have in .env.local):
-//
-//  1. Google Gemini — RECOMMENDED (free: 15 req/min, 1500/day)
-//     Get key: https://aistudio.google.com → Set GEMINI_API_KEY
-//
-//  2. Groq (Llama 3.3 70B) — Blazing fast, generous free tier
-//     Get key: https://console.groq.com → Set GROQ_API_KEY
-//
-//  3. OpenRouter (DeepSeek, Llama, Mistral, etc.) — 200 free req/day
-//     Get key: https://openrouter.ai → Set OPENROUTER_API_KEY
-//     Free model list: https://openrouter.ai/models?q=free
-// ─────────────────────────────────────────────────────────────────────────────
+const CREDIT_COSTS = { initial: 0, refinement: 0 };
 
-const CREDIT_COSTS = { initial: 5, refinement: 2 };
-
-// ─── Per-category design DNA injected into every prompt ──────────────────────
 const CATEGORY_DNA = {
     Portfolio: {
-        palette: 'deep navy + electric cyan accent, dark mode UI',
-        fonts: 'Syne (headings) + DM Sans (body)',
-        mood: 'Creative developer — techy, sharp, impressive',
-        mustHave: 'animated skill bars or bento grid, project cards with hover lift, GitHub/social links',
+        palette: 'deep navy background + electric cyan accent, layered dark mode UI with subtle radial glows',
+        fonts: 'Syne (headings 700-800) + DM Sans (body 400-500)',
+        mood: 'Elite creative developer — sharp, futuristic, high-skill presence',
+        layoutDNA: 'bento grid hero or split hero layout, asymmetrical sections, max-width 1200px centered container',
+        motionDNA: 'animated skill bars on scroll, hover-lift project cards, subtle glow pulse on CTA',
+        mustHave: 'bento grid or animated skills section, project showcase grid with hover tilt, GitHub + LinkedIn icons, tech stack section',
+        avoid: 'basic vertical stack layouts, generic centered hero with single button',
     },
     Restaurant: {
-        palette: 'warm cream + deep terracotta, or midnight black with gold accents',
-        fonts: 'Playfair Display (headings) + Lato (body)',
-        mood: 'Luxurious, appetite-whetting, cinematic',
-        mustHave: 'full-screen hero with food imagery, menu section with categories, reservation CTA',
+        palette: 'warm cream + deep terracotta OR midnight black with soft gold accents',
+        fonts: 'Playfair Display (headings 600-700) + Lato (body 400)',
+        mood: 'Cinematic, luxurious, appetite-whetting',
+        layoutDNA: 'full-bleed hero with overlay gradient, alternating image-text split sections',
+        motionDNA: 'slow parallax background, fade-in food cards, subtle gold shimmer on CTA',
+        mustHave: 'full-screen hero with rich imagery, categorized menu grid, reservation CTA button, chef/ambience section',
+        avoid: 'flat white backgrounds with no imagery',
     },
-    'E-commerce': {
-        palette: 'clean white + bold single accent color, product-forward layout',
-        fonts: 'Cabinet Grotesk (headings) + Inter (body)',
-        mood: 'Modern, conversion-focused, premium lifestyle brand',
-        mustHave: 'product grid with hover zoom, cart icon in nav, featured collection hero',
+    "E-commerce": {
+        palette: 'clean white + one bold accent (no multiple accents), strong product contrast',
+        fonts: 'Cabinet Grotesk (headings 600-700) + Inter (body 400-500)',
+        mood: 'Premium lifestyle brand, clean, conversion-focused',
+        layoutDNA: 'featured product hero + structured 3-4 column product grid',
+        motionDNA: 'hover zoom on product images, smooth add-to-cart feedback animation',
+        mustHave: 'cart icon in navbar, featured collection hero, product grid with pricing + CTA, trust badges section',
+        avoid: 'cluttered grids or too many accent colors',
     },
     Blog: {
-        palette: 'off-white + charcoal or deep slate, high typographic contrast',
+        palette: 'off-white background + charcoal/slate text, strong typographic contrast',
         fonts: 'DM Serif Display (headings) + Source Serif 4 (body)',
         mood: 'Editorial, thoughtful, typography-driven',
-        mustHave: 'featured post hero, article card grid, category tags, newsletter signup',
+        layoutDNA: 'featured hero article + masonry or 3-column article grid',
+        motionDNA: 'subtle underline animation on hover, soft fade-in cards',
+        mustHave: 'featured article hero, article card grid, category tags, newsletter signup block',
+        avoid: 'overuse of color blocks — typography must lead design',
     },
     Event: {
-        palette: 'deep black + neon pink or electric purple gradient accents',
-        fonts: 'Bebas Neue (headings) + Outfit (body)',
-        mood: 'Electric, high-energy, FOMO-inducing',
-        mustHave: 'live countdown timer (JS), lineup/speakers section, ticket CTA, date + location in hero',
+        palette: 'deep black + neon pink or electric purple gradients',
+        fonts: 'Bebas Neue (headings uppercase) + Outfit (body)',
+        mood: 'High-energy, electric, FOMO-inducing',
+        layoutDNA: 'centered dramatic hero with huge typography + countdown section',
+        motionDNA: 'live countdown timer (JS), glowing animated gradient backgrounds',
+        mustHave: 'countdown timer, lineup/speakers grid, ticket CTA, date + location in hero',
+        avoid: 'muted colors or minimal typography',
     },
     Gym: {
-        palette: 'pure black + white + one bold accent (yellow, red, or orange)',
-        fonts: 'Barlow Condensed (headings) + Barlow (body)',
+        palette: 'pure black + white + one aggressive accent (yellow/red/orange)',
+        fonts: 'Barlow Condensed (headings 700-800 uppercase) + Barlow (body)',
         mood: 'Raw power, intense, motivational',
-        mustHave: 'full-screen hero with bold headline, membership pricing cards, class schedule grid',
+        layoutDNA: 'bold split hero with large text overlaying imagery',
+        motionDNA: 'hover punch animation on buttons, subtle shake on CTA',
+        mustHave: 'membership pricing cards, transformation section, class schedule grid',
+        avoid: 'soft pastel colors or thin typography',
     },
     Travel: {
-        palette: 'sky blue gradient + warm sand tones, or deep ocean navy',
+        palette: 'sky blue gradient + sand tones OR deep ocean navy',
         fonts: 'Fraunces (headings) + Nunito (body)',
-        mood: 'Dreamy, wanderlust, aspirational and inviting',
-        mustHave: 'destination card grid with overlay text, search/filter bar in hero, featured trip section',
+        mood: 'Dreamy, wanderlust, inviting',
+        layoutDNA: 'image-forward hero with overlay text + destination card grid',
+        motionDNA: 'slow float animation on cards, subtle gradient sky animation',
+        mustHave: 'search/filter bar in hero, destination grid with overlay titles, featured trip section',
+        avoid: 'text-heavy layouts without imagery',
     },
     Startup: {
         palette: 'dark slate + cyan or emerald gradient accents',
-        fonts: 'Space Grotesk (headings) + Inter (body)',
-        mood: 'Modern SaaS, clean, trustworthy, growth-oriented',
-        mustHave: 'animated feature grid with icons, 3-tier pricing table, social proof logos, waitlist hero',
+        fonts: 'Space Grotesk (headings 600-700) + Inter (body)',
+        mood: 'Modern SaaS, clean, scalable, trustworthy',
+        layoutDNA: 'split hero (text + mock UI panel), structured feature grid, centered pricing table',
+        motionDNA: 'icon float animations, gradient button shimmer, smooth card elevation',
+        mustHave: 'feature grid with icons, 3-tier pricing table, social proof logos, waitlist CTA',
+        avoid: 'overcomplicated layouts or too many gradients',
     },
     Education: {
-        palette: 'warm amber + deep brown, parchment and terracotta tones',
+        palette: 'warm amber + deep brown, parchment-inspired tones',
         fonts: 'Merriweather (headings) + Open Sans (body)',
-        mood: 'Trustworthy, warm, knowledge-forward',
-        mustHave: 'course cards grid, instructor profiles section, student testimonials, enrollment CTA',
+        mood: 'Trustworthy, warm, knowledge-focused',
+        layoutDNA: 'structured course grid + instructor spotlight section',
+        motionDNA: 'soft fade-up animations, highlight glow on enrollment CTA',
+        mustHave: 'course cards grid, instructor profiles, student testimonials, enrollment CTA',
+        avoid: 'overly modern neon colors',
     },
     Photography: {
-        palette: 'near-black + sage green accent, film grain and muted aesthetic',
+        palette: 'near-black + sage green accent, muted and cinematic',
         fonts: 'Cormorant Garamond (headings) + Karla (body)',
-        mood: 'Artistic, quiet confidence, gallery-quality presentation',
-        mustHave: 'masonry photo grid, full-screen image hover, services/packages section, contact form',
+        mood: 'Artistic, confident, gallery-quality',
+        layoutDNA: 'masonry grid layout + full-screen lightbox hover',
+        motionDNA: 'slow fade transitions between images, subtle film grain overlay',
+        mustHave: 'masonry photo grid, service packages, fullscreen hover preview, contact form',
+        avoid: 'boxed layouts with heavy borders',
     },
 };
 
-// ─── System Prompt ────────────────────────────────────────────────────────────
-const SYSTEM_PROMPT = `You are Aetheris, an elite AI web architect. Your output is pure, working HTML/CSS/JS — no frameworks, no build steps. It runs directly in a browser.
+const SYSTEM_PROMPT = `You are Aetheris — an elite UI/UX web architect. You produce COMPLETE, FULLY-WRITTEN websites.
 
-==============================
-ARCHITECTURE
-==============================
+CRITICAL COMPLETION RULE:
+- You MUST complete ALL code. Never truncate, never summarize with "// continues...", never use "..." 
+- If you run out of space, SIMPLIFY the design but ALWAYS finish every block completely
+- The ===END=== marker MUST appear after fully complete JS
 
-- Output THREE separate code blocks: HTML (body only), CSS, JavaScript.
-- Do NOT include <html>, <head>, <style>, or <script> wrapper tags.
-- The site uses a hash-based SPA pattern.
-- Each page = <section class="page" id="pageName">.
-- CSS must include:
-    .page { display: none; }
-    .page.active { display: block; }
+================================================
+STRICT OUTPUT FORMAT (NON-NEGOTIABLE)
+================================================
 
-IMPORTANT:
-- The site may contain ADDITIONAL pages beyond the required ones.
-- The router MUST work dynamically for ANY section with class="page".
-- Do NOT hardcode page IDs inside the router.
-
-==============================
-ROUTING (SELF-MANAGED)
-==============================
-
-You MUST implement a dynamic hash router in JavaScript:
-
-- On page load, detect ALL elements with class ".page".
-- Show the section matching window.location.hash.
-- If no hash exists, default to "#home".
-- If the hash does not match any page, fallback to "#home".
-- Listen for "hashchange" events.
-- On hash change:
-    • Remove .active from ALL ".page" sections
-    • Add .active to the matching section (if exists)
-    • Scroll to top
-
-Navigation:
-- Use <a href="#pageName"> for links
-- MANDATORY ROUTER TEMPLATE (include this or similar logic):
-    function showPage(id) {
-        const pages = document.querySelectorAll('.page');
-        pages.forEach(p => p.classList.remove('active'));
-        const target = document.getElementById(id) || document.getElementById('home') || pages[0];
-        if (target) target.classList.add('active');
-        window.scrollTo(0, 0);
-    }
-    window.addEventListener('hashchange', () => showPage(location.hash.slice(1)));
-    window.addEventListener('load', () => showPage(location.hash.slice(1) || 'home'));
-    document.addEventListener('click', e => {
-        const a = e.target.closest('a');
-        if (a) {
-            const href = a.getAttribute('href');
-            if (href && !href.startsWith('http') && !href.startsWith('mailto')) {
-                e.preventDefault();
-                window.location.hash = href.startsWith('#') ? href : '#' + (href.split('/').pop().replace('.html', '') || 'home');
-            }
-        }
-    });
-
-==============================
-REQUIRED PAGES
-==============================
-
-Always include:
-- #home
-- #about
-- #services (or equivalent)
-- #contact
-
-The user may request additional pages (e.g., #pricing, #blog, #portfolio, etc.).
-If so:
-- Create them as <section class="page" id="requestedName">
-- Include them in navigation
-- Ensure the router automatically supports them
-
-Each page must:
-- Be min-height: 100vh
-- Feel like a complete screen experience
-
-==============================
-NAVBAR
-==============================
-
-- Fixed
-- backdrop-filter: blur(20px)
-- Logo left, nav right
-- Hamburger toggles .nav-open class only
-- Router controls which page is active (not nav click handlers)
-
-==============================
-HOME PAGE
-==============================
-
-Must contain:
-- Hero section (full viewport height)
-- Strong headline
-- Subtext
-- CTA button
-- 3 additional sections
-- Footer inside #home
-
-==============================
-DESIGN
-==============================
-
-- Google Fonts via @import
-- :root CSS variables for colors:
-    --primary
-    --accent
-    --bg
-    --surface
-    --text
-- CRITICAL: Ensure high contrast. If background is dark, text MUST be explicitly set to a light color like #fff.
-- CRITICAL: Do NOT use 'opacity: 0' as a default state for animations. All text and elements MUST be 100% visible without JavaScript. If animating, animate from 1 to 1 or add a specific class via JS first.
-- Smooth hover transitions
-- Real copy (no lorem ipsum)
-- Inline SVG icons only
-- CSS keyframes for motion
-
-==============================
-OUTPUT FORMAT
-==============================
+Return EXACTLY this structure:
 
 ===HTML===
-(body content only)
+[complete body HTML here]
 ===CSS===
-(all styles)
+[complete CSS here]
 ===JS===
-(all JavaScript including dynamic router - THIS BLOCK IS MANDATORY AND MUST BE NON-EMPTY)
+[complete JavaScript here]
 ===END===
+
+NO text before ===HTML===
+NO text after ===END===
+NO markdown fences
+NO explanations
+
+================================================
+ARCHITECTURE
+================================================
+
+Hash-based SPA. Every page uses:
+  <section class="page" id="pageName">
+
+Required pages: #home, #about, #services, #contact
+
+Router (copy exactly):
+function showPage(id) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    const t = document.getElementById(id) || document.getElementById('home');
+    if (t) { t.classList.add('active'); window.scrollTo(0,0); }
+}
+window.addEventListener('hashchange', () => showPage(location.hash.slice(1)));
+window.addEventListener('load', () => showPage(location.hash.slice(1) || 'home'));
+document.addEventListener('click', e => {
+    const a = e.target.closest('a[href]');
+    if (a) {
+        const h = a.getAttribute('href');
+        if (h && !h.startsWith('http') && !h.startsWith('mailto')) {
+            e.preventDefault();
+            window.location.hash = h.startsWith('#') ? h : '#' + (h.split('/').pop().replace('.html','') || 'home');
+        }
+    }
+});
+
+================================================
+NAVBAR (MANDATORY)
+================================================
+
+:root { --nav-height: 72px; }
+body { padding-top: var(--nav-height); }
+.navbar { position:fixed; top:0; left:0; right:0; height:var(--nav-height); backdrop-filter:blur(20px); z-index:1000; }
+
+================================================
+COLOR SYSTEM
+================================================
+
+Must define:
+:root {
+  --primary: ;
+  --accent: ;
+  --bg: ;
+  --surface: ;
+  --text: ;
+  --muted: ;
+  --border: ;
+}
+
+================================================
+HOME PAGE — ALL 6 SECTIONS REQUIRED
+================================================
+
+1. Split Hero: big headline, subtext, 2 CTAs, radial glow decoration
+2. Feature Grid: 3-6 cards with inline SVG icons, real copy
+3. Showcase / Product section with image
+4. Social proof: testimonials OR animated stats counters  
+5. Final CTA banner
+6. Footer: 3-col grid, brand description, nav links, social SVG icons, copyright
+
+================================================
+IMAGES
+================================================
+
+IMAGE RULES (MANDATORY):
+
+- ONLY use images from:
+  1) https://images.unsplash.com/photo-REAL_ID?auto=format&fit=crop&w=1200&q=80
+  2) https://picsum.photos/1200/800
+
+- DO NOT use:
+  - random Unsplash links
+  - source.unsplash.com
+  - placeholder.com
+  - any other domain
+  - local images
+  - relative paths
+  - base64 images
+
+- For Unsplash:
+  - You MUST use a REAL existing photo ID.
+  - Format MUST be:
+    https://images.unsplash.com/photo-<REAL_ID>?auto=format&fit=crop&w=1200&q=80
+
+- If a valid Unsplash ID is unknown, use:
+  https://picsum.photos/1200/800
+
+- Never invent fake IDs like:
+  photo-REAL_KNOWN_ID
+
+- Every image must be HTTPS.
+
+This rule is strict and must never be broken.
+
+
+Use object-fit: cover. Always define container height.
+
+================================================
+QUALITY RULES
+================================================
+
+- Real copy (no "Lorem ipsum")
+- No placeholder text anywhere
+- All interactive buttons actually work (JS state changes)
+- No broken references
+- Cards, grids, sections fully populated with content
+- Complete CSS (no missing closing braces)
+- Complete JS (router + at least one interactive system)
 `;
 
-// ─── AI Providers ─────────────────────────────────────────────────────────────
 
-async function callGemini(prompt) {
+
+async function callGeminiModel(model, prompt) {
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
+    if (!apiKey) throw new Error('GEMINI_API_KEY not set in .env.local');
 
     const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
         {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
                 contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                generationConfig: { temperature: 0.9, maxOutputTokens: 8192, topP: 0.95 },
+                generationConfig: {
+                    temperature: 0.7,
+                    maxOutputTokens: 65536,
+                    topP: 0.9,
+                },
             }),
         }
     );
 
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(`Gemini ${res.status}: ${err?.error?.message || res.statusText}`);
+        const msg = err?.error?.message || res.statusText;
+        const status = res.status;
+
+        // Surface quota errors clearly
+        if (status === 429) throw new Error(`QUOTA_EXCEEDED:${model}`);
+        if (status === 400) throw new Error(`BAD_REQUEST:${model}: ${msg}`);
+        throw new Error(`Gemini ${status} (${model}): ${msg}`);
     }
 
     const data = await res.json();
-    return data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (!text) throw new Error(`Empty response from ${model}`);
+    return text;
 }
 
-async function callGroq(prompt) {
-    const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) throw new Error('GROQ_API_KEY not configured');
 
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
-            messages: [{ role: 'user', content: prompt }],
-            temperature: 0.9,
-            max_tokens: 8192,
-        }),
-    });
-
-    if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(`Groq ${res.status}: ${err?.error?.message || res.statusText}`);
-    }
-
-    const data = await res.json();
-    return data?.choices?.[0]?.message?.content || '';
-}
-
-async function callOpenRouter(prompt) {
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) throw new Error('OPENROUTER_API_KEY not configured');
-
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${apiKey}`,
-            'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-            'X-Title': 'CreateGen',
-        },
-        body: JSON.stringify({
-            model: process.env.OPENROUTER_MODEL || 'deepseek/deepseek-chat:free',
-            messages: [{ role: 'user', content: prompt }],
-            temperature: 0.9,
-            max_tokens: 8192,
-        }),
-    });
-
-    if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(`OpenRouter ${res.status}: ${err?.error?.message || res.statusText}`);
-    }
-
-    const data = await res.json();
-    return data?.choices?.[0]?.message?.content || '';
-}
-
-// Auto-selects provider based on available env keys, with fallback chain
+const GEMINI_MODELS = [
+    'gemini-2.5-flash',       // Current best free-tier balance
+    'gemini-2.0-flash-001',   // Stable fallback
+    'gemini-3-flash-preview', // Frontier speed (if in preview)
+    'gemini-2.5-flash-lite'   // Smallest / high-throughput
+];
 async function generateWithAI(prompt) {
-    const providers = [
-        { name: 'Gemini', fn: callGemini, key: 'GEMINI_API_KEY' },
-        { name: 'Groq', fn: callGroq, key: 'GROQ_API_KEY' },
-        { name: 'OpenRouter', fn: callOpenRouter, key: 'OPENROUTER_API_KEY' },
-    ];
-
-    const available = providers.filter(p => process.env[p.key]);
-
-    if (available.length === 0) {
-        throw new Error(
-            'No AI API key found. Add GEMINI_API_KEY, GROQ_API_KEY, or OPENROUTER_API_KEY to your .env.local file.'
-        );
+    if (!process.env.GEMINI_API_KEY) {
+        throw new Error('GEMINI_API_KEY not found. Add it to your .env.local file.');
     }
 
     let lastError;
-    for (const provider of available) {
+    for (const model of GEMINI_MODELS) {
         try {
-            console.log(`[CreateGen] Using provider: ${provider.name}`);
-            const text = await provider.fn(prompt);
-            if (text?.trim()) return text;
-            throw new Error('Empty response from provider');
+            console.log(`[CreateGen] Trying ${model}...`);
+            const text = await callGeminiModel(model, prompt);
+            if (text.length > 500) {
+                console.log(`[CreateGen] ✓ ${model} succeeded — ${text.length} chars`);
+                return text;
+            }
+            throw new Error('Response too short');
         } catch (err) {
-            console.warn(`[CreateGen] ${provider.name} failed:`, err.message);
+            console.warn(`[CreateGen] ✗ ${model} failed: ${err.message}`);
             lastError = err;
+            // Only continue to next model on quota/rate errors
+            if (!err.message.startsWith('QUOTA_EXCEEDED') && !err.message.includes('429')) {
+                break;
+            }
         }
     }
 
-    throw lastError || new Error('All AI providers failed. Check your API keys.');
+    throw new Error(
+        lastError?.message?.includes('QUOTA_EXCEEDED')
+            ? 'All Gemini models are rate-limited. Wait a minute and try again, or check your quota at aistudio.google.com.'
+            : lastError?.message || 'Gemini request failed. Check your API key.'
+    );
 }
 
-// ─── Parser ───────────────────────────────────────────────────────────────────
+
+
 function parseCodeBlocks(text) {
-    let html = '';
-    let css = '';
-    let js = '';
+    let html = '', css = '', js = '';
 
-    // 1. Try to parse using markdown code blocks first (often used by models despite instructions)
-    const htmlFenceMatch = text.match(/```(?:html|[^`]*body)[ \n]*([\s\S]*?)```/i);
-    const cssFenceMatch = text.match(/```(?:css|style)[ \n]*([\s\S]*?)```/i);
-    const jsFenceMatch = text.match(/```(?:javascript|js|script)[ \n]*([\s\S]*?)```/i);
+    const htmlMatch = text.match(/===HTML===([\s\S]*?)(?====CSS===|===END===|$)/i);
+    const cssMatch = text.match(/===CSS===([\s\S]*?)(?====JS===|===END===|$)/i);
+    const jsMatch = text.match(/===JS===([\s\S]*?)(?====END===|$)/i);
 
-    if (htmlFenceMatch) html = htmlFenceMatch[1].trim();
-    if (cssFenceMatch) css = cssFenceMatch[1].trim();
-    if (jsFenceMatch) js = jsFenceMatch[1].trim();
+    if (htmlMatch) html = htmlMatch[1].trim();
+    if (cssMatch) css = cssMatch[1].trim();
+    if (jsMatch) js = jsMatch[1].trim();
 
-    // 2. If fences weren't found or were incomplete, try line-by-line marker parsing
+   
+    if (!html && !css && !js) {
+        const htmlFence = text.match(/```(?:html)[^\n]*\n([\s\S]*?)```/i);
+        const cssFence = text.match(/```(?:css)[^\n]*\n([\s\S]*?)```/i);
+        const jsFence = text.match(/```(?:javascript|js)[^\n]*\n([\s\S]*?)```/i);
+        if (htmlFence) html = htmlFence[1].trim();
+        if (cssFence) css = cssFence[1].trim();
+        if (jsFence) js = jsFence[1].trim();
+    }
+
     if (!html && !css && !js) {
         const lines = text.split('\n');
-        let currentBlock = null;
-        let inCodeBlock = false;
-
+        let current = null;
+        const blocks = { html: [], css: [], js: [] };
         for (const line of lines) {
-            const trimmedLine = line.trim();
-            const upperLine = trimmedLine.toUpperCase();
-
-            // Check for markdown fence start/end
-            if (trimmedLine.startsWith('```')) {
-                inCodeBlock = !inCodeBlock;
-                // If it's a fence with a language, try to set currentBlock
-                const langMatch = trimmedLine.match(/```(html|css|js|javascript)/i);
-                if (inCodeBlock && langMatch) {
-                    currentBlock = langMatch[1].toLowerCase() === 'javascript' ? 'js' : langMatch[1].toLowerCase();
-                } else if (!inCodeBlock) {
-                    currentBlock = null; // End of a fenced block
-                }
-                continue; // Skip the fence line itself
-            }
-
-            if (inCodeBlock) {
-                // If we are inside a fenced block, append to the currentBlock
-                if (currentBlock === 'html') html += line + '\n';
-                else if (currentBlock === 'css') css += line + '\n';
-                else if (currentBlock === 'js') js += line + '\n';
-                continue;
-            }
-
-            // Match section markers like ===HTML===, ### CSS ###, **JS**, HTML:, <!-- HTML -->
-            if (/^(?:===|###|\*\*|<!--)?\s*(HTML|CSS|JS|JAVASCRIPT)(?:\s*CODE)?\s*(?:===|###|\*\*|:|-->)*$/.test(upperLine)) {
-                const match = upperLine.match(/(HTML|CSS|JS|JAVASCRIPT)/);
-                if (match) {
-                    const section = match[1] === 'JAVASCRIPT' ? 'js' : match[1].toLowerCase();
-                    currentBlock = section;
-                }
-            } else if (/^(?:===|###|\*\*|<!--)?\s*END\s*(?:===|###|\*\*|-->)*$/.test(upperLine)) {
-                currentBlock = null;
-            } else {
-                if (currentBlock === 'html') html += line + '\n';
-                else if (currentBlock === 'css') css += line + '\n';
-                else if (currentBlock === 'js') js += line + '\n';
-            }
+            const u = line.trim().toUpperCase().replace(/[^A-Z]/g, '');
+            if (u === 'HTML') { current = 'html'; continue; }
+            if (u === 'CSS') { current = 'css'; continue; }
+            if (u === 'JS' || u === 'JAVASCRIPT') { current = 'js'; continue; }
+            if (u === 'END') { current = null; continue; }
+            if (current) blocks[current].push(line);
         }
+        html = blocks.html.join('\n').trim();
+        css = blocks.css.join('\n').trim();
+        js = blocks.js.join('\n').trim();
     }
 
-    // 3. Clean up any remaining block wrappers if they got merged
-    html = html.replace(/^```html\s*/i, '').replace(/```\s*$/i, '').trim();
-    css = css.replace(/^```css\s*/i, '').replace(/```\s*$/i, '').trim();
-    js = js.replace(/^```(?:javascript|js)\s*/i, '').replace(/```\s*$/i, '').trim();
+  
+    html = html.replace(/^```[\w]*\n?/i, '').replace(/\n?```$/i, '').trim();
+    css = css.replace(/^```[\w]*\n?/i, '').replace(/\n?```$/i, '').trim();
+    js = js.replace(/^```[\w]*\n?/i, '').replace(/\n?```$/i, '').trim();
 
-    // 4. EXTRACTION FALLBACK: If AI returned a single monolithic HTML file despite instructions
-    if (html && html.includes('<style')) {
-        const styleMatch = html.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
-        if (styleMatch) {
-            css = styleMatch[1].trim() + '\n' + css;
-            html = html.replace(/<style[^>]*>[\s\S]*?<\/style>/i, '');
-        }
+   
+    if (html.includes('<style')) {
+        const m = html.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+        if (m) { css = m[1].trim() + '\n' + css; html = html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ''); }
+    }
+    if (html.includes('<script')) {
+        const m = html.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
+        if (m) { js = m[1].trim() + '\n' + js; html = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ''); }
     }
 
-    if (html && html.includes('<script')) {
-        const scriptMatch = html.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
-        if (scriptMatch) {
-            js = scriptMatch[1].trim() + '\n' + js;
-            html = html.replace(/<script[^>]*>[\s\S]*?<\/script>/i, '');
-        }
-    }
 
-    // Final Cleanup: remove head, body, html tags if present and clean up style/script tags inside css/js blocks
     html = html.replace(/<\/?(?:html|head|body)[^>]*>/gi, '').trim();
     css = css.replace(/<\/?style[^>]*>/gi, '').trim();
     js = js.replace(/<\/?script[^>]*>/gi, '').trim();
 
-    console.log(`[CreateGen] Parse complete. HTML: ${html.length} chars, CSS: ${css.length} chars, JS: ${js.length} chars.`);
+    console.log(`[CreateGen] Parse: HTML=${html.length}ch, CSS=${css.length}ch, JS=${js.length}ch`);
 
-    // Total failure fallback
-    if (!html && !css && !js && text.length > 50) {
-        console.warn('[CreateGen] Total parse failure, extracting largest code blocks.');
-        const monolithicCodeMatch = text.match(/```[a-z]*\n([\s\S]*?)```/i);
-        if (monolithicCodeMatch) {
-            html = monolithicCodeMatch[1].trim();
-        } else {
-            html = text.trim();
-        }
+    // Validate: if CSS seems truncated (missing last }), close it
+    const openBraces = (css.match(/{/g) || []).length;
+    const closeBraces = (css.match(/}/g) || []).length;
+    if (openBraces > closeBraces) {
+        css += '\n' + '}'.repeat(openBraces - closeBraces);
+        console.warn(`[CreateGen] CSS auto-closed ${openBraces - closeBraces} brace(s)`);
     }
 
-    if (!html) {
-        throw new Error('AI did not return any code. Please try again.');
-    }
-
-    // Auto-repair missing .page classes
-    if (!html.includes('class="page"') && !html.includes("class='page'")) {
-        console.warn("[CreateGen] Missing .page classes, auto-repairing...");
-        html = html.replace(/<section\b/gi, '<section class="page"');
-    }
-
-    // Auto-repair aggressive opacity: 0 bugs
-    if (css.includes('opacity: 0') || css.includes('opacity:0')) {
-        css += `\n/* FAILSAFE: Ensure content is visible if JS animations fail */\nbody * { opacity: 1 !important; visibility: visible !important; }`;
-    }
-
-    // FALLBACK: If AI forgot or failed to provide working custom JS, inject a default router
-    if (!js || js.length < 50) {
-        console.warn("[CreateGen] JS block was empty or too short. Injecting default router.");
-        js = `
-(function() {
-    function showPage(id) {
-        const pages = document.querySelectorAll('.page');
-        if (pages.length === 0) return;
-
-        pages.forEach(p => p.classList.remove('active'));
-        const target = document.getElementById(id) || document.getElementById('home') || pages[0];
-        if (target) {
-            target.classList.add('active');
-        }
-        window.scrollTo(0, 0);
-    }
-
-    // Intercept clicks to prevent default navigation and enforce hash routing
-    document.addEventListener('click', (e) => {
-        const a = e.target.closest('a');
-        if (a) {
-            const href = a.getAttribute('href');
-            if (!href || href.startsWith('http') || href.startsWith('mailto')) return;
-            
-            e.preventDefault();
-            let targetPage = href;
-            if (!href.startsWith('#')) {
-                targetPage = '#' + (href.split('/').pop().replace('.html', '') || 'home');
-            }
-            
-            if (targetPage.length > 1) {
-                setTimeout(() => {
-                    window.location.hash = targetPage;
-                    showPage(targetPage.slice(1));
-                }, 10);
-            }
-        }
-    });
-
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.classList.add('reveal', 'visible', 'animated');
-                observer.unobserve(entry.target);
-            }
-        });
-    }, { threshold: 0.1 });
-
-    function init() {
-        showPage(location.hash.slice(1) || 'home');
-        document.querySelectorAll('section, h1, h2, h3, .card, .feature-item, img').forEach(el => {
-            observer.observe(el);
-        });
-    }
-
-    window.addEventListener('hashchange', () => showPage(location.hash.slice(1)));
-    window.addEventListener('load', () => setTimeout(init, 100));
+    // Inject default router if JS is empty/tiny
+    if (!js || js.length < 100) {
+        console.warn('[CreateGen] Injecting fallback router JS');
+        js = `(function(){
+function showPage(id){
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    var t=document.getElementById(id)||document.getElementById('home')||document.querySelector('.page');
+    if(t){t.classList.add('active');window.scrollTo(0,0);}
+}
+window.addEventListener('hashchange',function(){showPage(location.hash.slice(1));});
+window.addEventListener('load',function(){showPage(location.hash.slice(1)||'home');});
+document.addEventListener('click',function(e){
+    var a=e.target.closest('a');
+    if(a){var h=a.getAttribute('href');
+    if(h&&!h.startsWith('http')&&!h.startsWith('mailto')){
+        e.preventDefault();
+        window.location.hash=h.startsWith('#')?h:'#'+(h.split('/').pop().replace('.html','')||'home');
+    }}
+});
 })();`;
     }
 
+    // Ensure .page visibility works
+    if (!css.includes('.page.active') && !css.includes('.page {')) {
+        css = `.page{display:none}.page.active{display:block}\n` + css;
+    }
+
+    if (!html) throw new Error('AI did not return valid HTML. Please try again.');
     return { html, css, js };
 }
 
-// ─── Route Handler ────────────────────────────────────────────────────────────
+
 export async function POST(request) {
     try {
         const body = await request.json();
@@ -517,65 +424,57 @@ export async function POST(request) {
             mode = 'initial',
             currentCode = null,
             refinementInput = '',
-            contentPrompt = '',
-            colorPrompt = '',
-            functionalityPrompt = '',
         } = body;
 
-        // Combine dashboard-specific fields if primary prompt is empty
-        let processedPrompt = userPrompt;
-        if (!processedPrompt && (contentPrompt || colorPrompt || functionalityPrompt)) {
-            processedPrompt = `Content: ${contentPrompt}\nStyle: ${colorPrompt}\nFunctionality: ${functionalityPrompt}`;
-        }
-
-        // ── Credits ──────────────────────────────────────────────────────────
         const cookieStore = await cookies();
         const creditsStr = cookieStore.get('user-credits')?.value;
         let credits = creditsStr !== undefined ? parseInt(creditsStr, 10) : 100;
-        if (isNaN(credits) || credits < 5) credits = 100; // auto-refill for dev
+        if (isNaN(credits) || credits < 0) credits = 100;
 
         const cost = CREDIT_COSTS[mode] ?? 0;
         if (credits < cost) {
             return NextResponse.json({ error: 'Insufficient credits.' }, { status: 403 });
         }
 
-        // ── Build Final Prompt ────────────────────────────────────────────────
         const dna = CATEGORY_DNA[category] || CATEGORY_DNA['Portfolio'];
         let finalPrompt;
 
         if (mode === 'initial') {
-            if (!processedPrompt.trim()) {
+            if (!userPrompt.trim()) {
                 return NextResponse.json({ error: 'Please enter a prompt.' }, { status: 400 });
             }
 
-            finalPrompt = `${SYSTEM_PROMPT}
+            finalPrompt = `WEBSITE CATEGORY: ${category}
 
----
-WEBSITE CATEGORY: ${category}
 DESIGN DNA:
-  - Color palette: ${dna.palette}
-  - Typography: ${dna.fonts}
-  - Mood & tone: ${dna.mood}
-  - Must-have elements: ${dna.mustHave}
+- Color palette: ${dna.palette}
+- Typography: ${dna.fonts}
+- Mood: ${dna.mood}
+- Layout: ${dna.layoutDNA}
+- Motion: ${dna.motionDNA}
+- Must include: ${dna.mustHave}
+- Avoid: ${dna.avoid}
 
-USER VISION: "${processedPrompt}"
----
+USER VISION: "${userPrompt}"
 
-Build this website now. Be bold, creative, and highly detailed. Use real copy — no placeholder text.
-Return ONLY the three delimited code blocks. No explanation, no markdown outside the blocks.`;
+Build this complete website. Use REAL copy — brand name, realistic text, real content. No placeholders.
+Output ONLY the three code blocks in the exact format:
+===HTML===
+[body HTML]
+===CSS===
+[all styles]
+===JS===
+[all JavaScript]
+===END===`;
 
         } else if (mode === 'refinement') {
             if (!refinementInput.trim()) {
                 return NextResponse.json({ error: 'Please describe the changes you want.' }, { status: 400 });
             }
 
-            finalPrompt = `${SYSTEM_PROMPT}
+            finalPrompt = `Apply these modifications to the existing website: "${refinementInput}"
 
----
-TASK: Apply these specific modifications to the existing website:
-"${refinementInput}"
-
-EXISTING CODEBASE:
+EXISTING CODE:
 ===HTML===
 ${currentCode?.html || ''}
 ===CSS===
@@ -583,21 +482,24 @@ ${currentCode?.css || ''}
 ===JS===
 ${currentCode?.js || ''}
 ===END===
----
 
-Return the COMPLETE updated files — all three blocks fully rewritten with changes applied.
-Do NOT omit or truncate any unchanged sections. Return every line.
-No explanation, no markdown outside the blocks.`;
+Return the COMPLETE updated code for all three blocks — do not omit or truncate anything.
+Use the same output format:
+===HTML===
+[complete HTML]
+===CSS===
+[complete CSS]
+===JS===
+[complete JS]
+===END===`;
 
         } else {
             return NextResponse.json({ error: 'Invalid mode.' }, { status: 400 });
         }
 
-        // ── Generate ──────────────────────────────────────────────────────────
         const rawText = await generateWithAI(finalPrompt);
         const result = parseCodeBlocks(rawText);
 
-        // ── Deduct Credits ────────────────────────────────────────────────────
         credits -= cost;
         cookieStore.set('user-credits', String(credits), {
             path: '/',
@@ -606,11 +508,7 @@ No explanation, no markdown outside the blocks.`;
             sameSite: 'lax',
         });
 
-        return NextResponse.json({
-            ...result,
-            creditsRemaining: credits,
-            mode,
-        });
+        return NextResponse.json({ ...result, creditsRemaining: credits, mode });
 
     } catch (error) {
         console.error('[CreateGen API Error]', error);

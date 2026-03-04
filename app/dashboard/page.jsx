@@ -277,7 +277,7 @@ export default function Dashboard() {
               <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.55)', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Credits</span>
               <span style={{ fontFamily: "'Syne', sans-serif", fontSize: '22px', fontWeight: 700, color: '#4ade80' }}>{credits}</span>
             </div>
-            <a href="#" className="new-project-btn">
+            <a href="/x" className="new-project-btn">
               <span style={{ position: 'relative', zIndex: 1 }}>+ New Project</span>
             </a>
           </div>
@@ -302,6 +302,8 @@ export default function Dashboard() {
           gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
           gap: '16px',
         }}>
+          
+          <a href="/x">
           <div
             className="create-card"
             onMouseEnter={() => setHoveredCard('new')}
@@ -349,7 +351,7 @@ export default function Dashboard() {
               opacity: hoveredCard === 'new' ? 1 : 0,
               transition: 'opacity 0.3s ease',
             }} />
-          </div>
+          </div></a>
         </div>
 
         {/* Footer */}
