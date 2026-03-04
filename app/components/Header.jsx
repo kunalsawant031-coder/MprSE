@@ -9,7 +9,7 @@ import {
   SignedIn,
   SignedOut,
   UserButton,
-} from '@clerk/nextjs'
+} from '@clerk/nextjs';
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -17,9 +17,7 @@ export default function Header() {
   const pathname = usePathname();
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-    };
+    const handleScroll = () => setIsScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -31,111 +29,340 @@ export default function Header() {
   ];
 
   return (
-    <nav
-      className={`fixed top-0 w-full z-50 transition-all duration-300 ${isScrolled
-        ? 'bg-black/80 backdrop-blur-md border-b border-white/10 py-4'
-        : 'bg-black/80 backdrop-blur-md border-b border-white/10 py-4'
-        }`}
-    >
-      <div className="translate-y-[-4] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center">
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400&display=swap');
 
+        :root {
+          --cream: #f0ebe1;
+          --ink: #0e0d0b;
+          --accent: #c8f03a;
+          --muted: #6b6760;
+          --border: #2a2925;
+        }
 
-          <div className="flex-shrink-0 flex items-center">
-            <Link href="/" className="group flex items-center gap-2">
-              <div className="relative w-8 h-8 flex items-center justify-center bg-gradient-to-tr from-purple-600 to-pink-600 rounded-lg group-hover:scale-110 transition-transform duration-300">
-                <span className="text-white font-bold text-lg">C</span>
-              </div>
-              <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400 group-hover:from-purple-400 group-hover:to-pink-400 transition-all duration-300">
-                Criar
-              </span>
-            </Link>
+        .criar-nav {
+          position: fixed;
+          top: 0;
+          width: 100%;
+          z-index: 50;
+          background: rgba(14, 13, 11, 0.85);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          border-bottom: 1px solid var(--border);
+          padding: 16px 0;
+          transition: box-shadow 0.3s;
+          font-family: 'DM Mono', monospace;
+        }
+
+        .criar-nav.scrolled {
+          box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .criar-nav-inner {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 0 32px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        /* Logo */
+        .criar-logo {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          text-decoration: none;
+        }
+
+        .criar-logo-icon {
+          width: 32px;
+          height: 32px;
+          background: linear-gradient(135deg, var(--accent) 0%, #8fff00 100%);
+          border-radius: 6px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: transform 0.3s;
+        }
+
+        .criar-logo:hover .criar-logo-icon {
+          transform: scale(1.1);
+        }
+
+        .criar-logo-icon span {
+          font-family: 'Syne', sans-serif;
+          font-weight: 800;
+          font-size: 1rem;
+          color: var(--ink);
+        }
+
+        .criar-logo-text {
+          font-family: 'Syne', sans-serif;
+          font-weight: 800;
+          font-size: 1.4rem;
+          color: var(--cream);
+          letter-spacing: -0.5px;
+          transition: color 0.3s;
+        }
+
+        .criar-logo:hover .criar-logo-text {
+          color: var(--accent);
+        }
+
+        /* Nav links */
+        .criar-nav-links {
+          display: flex;
+          align-items: center;
+          gap: 32px;
+          list-style: none;
+          margin: 0;
+          padding: 0;
+        }
+
+        .criar-nav-links a {
+          text-decoration: none;
+          font-size: 0.78rem;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: var(--muted);
+          transition: color 0.2s;
+          position: relative;
+        }
+
+        .criar-nav-links a.active,
+        .criar-nav-links a:hover {
+          color: var(--cream);
+        }
+
+        .criar-nav-links a.active::after {
+          content: '';
+          position: absolute;
+          bottom: -4px;
+          left: 0;
+          width: 100%;
+          height: 1px;
+          background: var(--accent);
+        }
+
+        /* Auth */
+        .criar-nav-auth {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
+
+        .criar-btn-ghost {
+          background: none;
+          border: none;
+          color: var(--muted);
+          font-family: 'DM Mono', monospace;
+          font-size: 0.78rem;
+          letter-spacing: 0.08em;
+          cursor: pointer;
+          transition: color 0.2s;
+          text-transform: uppercase;
+          padding: 0;
+        }
+
+        .criar-btn-ghost:hover {
+          color: var(--cream);
+        }
+
+        .criar-btn-primary {
+          background: var(--accent);
+          color: var(--ink);
+          border: none;
+          border-radius: 2px;
+          font-family: 'Syne', sans-serif;
+          font-weight: 700;
+          font-size: 0.75rem;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          padding: 9px 20px;
+          cursor: pointer;
+          transition: background 0.2s, transform 0.2s;
+          text-decoration: none;
+          display: inline-block;
+        }
+
+        .criar-btn-primary:hover {
+          background: #d4f545;
+          transform: translateY(-1px);
+        }
+
+        /* Hamburger */
+        .criar-hamburger {
+          display: none;
+          background: none;
+          border: none;
+          color: var(--muted);
+          cursor: pointer;
+          padding: 4px;
+          transition: color 0.2s;
+        }
+
+        .criar-hamburger:hover {
+          color: var(--cream);
+        }
+
+        /* Mobile menu */
+        .criar-mobile-menu {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          width: 100%;
+          background: rgba(14, 13, 11, 0.98);
+          backdrop-filter: blur(16px);
+          border-bottom: 1px solid var(--border);
+          max-height: 0;
+          overflow: hidden;
+          transition: max-height 0.3s ease, opacity 0.3s ease;
+          opacity: 0;
+        }
+
+        .criar-mobile-menu.open {
+          max-height: 400px;
+          opacity: 1;
+        }
+
+        .criar-mobile-menu-inner {
+          padding: 24px 32px 32px;
+        }
+
+        .criar-mobile-menu a {
+          display: block;
+          text-decoration: none;
+          color: var(--muted);
+          font-size: 0.82rem;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          padding: 12px 0;
+          border-bottom: 1px solid var(--border);
+          transition: color 0.2s;
+        }
+
+        .criar-mobile-menu a:hover,
+        .criar-mobile-menu a.active {
+          color: var(--cream);
+        }
+
+        .criar-mobile-auth {
+          padding-top: 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        @media (max-width: 768px) {
+          .criar-nav-links,
+          .criar-nav-auth {
+            display: none;
+          }
+
+          .criar-hamburger {
+            display: block;
+          }
+        }
+      `}</style>
+
+      <nav className={`criar-nav${isScrolled ? ' scrolled' : ''}`}>
+        <div className="criar-nav-inner">
+
+          {/* Logo */}
+          <Link href="/" className="criar-logo">
+            <div className="criar-logo-icon">
+              <span>C</span>
+            </div>
+            <span className="criar-logo-text">Criar</span>
+          </Link>
+
+          {/* Desktop Nav Links */}
+          <ul className="criar-nav-links">
+            {navLinks.map((link) => (
+              <li key={link.name}>
+                <Link
+                  href={link.href}
+                  className={pathname === link.href ? 'active' : ''}
+                >
+                  {link.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+
+          {/* Desktop Auth */}
+          <div className="criar-nav-auth">
+            <SignedOut>
+              <SignInButton>
+                <button className="criar-btn-ghost">Sign In</button>
+              </SignInButton>
+              <SignUpButton>
+                <button className="criar-btn-primary">Sign Up</button>
+              </SignUpButton>
+            </SignedOut>
+            <SignedIn>
+              <UserButton />
+              <Link href="/dashboard" className="criar-btn-primary">
+                Get Started
+              </Link>
+            </SignedIn>
           </div>
 
+          {/* Hamburger */}
+          <button
+            className="criar-hamburger"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle menu"
+          >
+            <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {mobileMenuOpen ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M6 18L18 6M6 6l12 12" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 6h16M4 12h16M4 18h16" />
+              )}
+            </svg>
+          </button>
+        </div>
 
-          <div className="hidden md:flex items-center space-x-8">
+        {/* Mobile Menu */}
+        <div className={`criar-mobile-menu${mobileMenuOpen ? ' open' : ''}`}>
+          <div className="criar-mobile-menu-inner">
             {navLinks.map((link) => (
               <Link
                 key={link.name}
                 href={link.href}
-                className={`text-sm font-medium transition-colors duration-200 ${pathname === link.href ? 'text-white' : 'text-gray-400 hover:text-white'
-                  }`}
+                className={pathname === link.href ? 'active' : ''}
+                onClick={() => setMobileMenuOpen(false)}
               >
                 {link.name}
               </Link>
             ))}
-          </div>
-
-
-          <div className="hidden md:flex items-center space-x-4">
-            <SignedOut>
-              <SignInButton />
-              <SignUpButton>
-                <button className="bg-[#6c47ff] text-white rounded-full font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 cursor-pointer">
-                  Sign Up
-                </button>
-              </SignUpButton>
-            </SignedOut>
-            {/* Show the user button when the user is signed in */}
-            <SignedIn>
-              <UserButton />
-              <Link
-                href="/dashboard"
-                className="px-6 py-2.5 bg-white text-black text-sm font-bold rounded-full hover:bg-gray-200 transition-all duration-300 hover:scale-105 hover:shadow-[0_0_20px_rgba(255,255,255,0.3)]"
-              >
-                Get Started
-              </Link>
-            </SignedIn>
-
-          </div>
-
-
-          <div className="md:hidden flex items-center">
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="text-gray-300 hover:text-white p-2"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                {mobileMenuOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-                )}
-              </svg>
-            </button>
+            <div className="criar-mobile-auth">
+              <SignedOut>
+                <SignInButton>
+                  <button className="criar-btn-ghost" style={{ textAlign: 'left' }}>Sign In</button>
+                </SignInButton>
+                <SignUpButton>
+                  <button className="criar-btn-primary" style={{ textAlign: 'center' }}>Sign Up</button>
+                </SignUpButton>
+              </SignedOut>
+              <SignedIn>
+                <UserButton />
+                <Link
+                  href="/dashboard"
+                  className="criar-btn-primary"
+                  style={{ textAlign: 'center' }}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Get Started
+                </Link>
+              </SignedIn>
+            </div>
           </div>
         </div>
-      </div>
-
-
-      <div
-        className={`md:hidden absolute top-full left-0 w-full bg-black/95 backdrop-blur-xl border-b border-white/10 transition-all duration-300 overflow-hidden ${mobileMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-          }`}
-      >
-        <div className="px-4 py-6 space-y-4">
-          {navLinks.map((link) => (
-            <Link
-              key={link.name}
-              href={link.href}
-              onClick={() => setMobileMenuOpen(false)}
-              className={`block text-lg font-medium ${pathname === link.href ? 'text-white' : 'text-gray-400'
-                }`}
-            >
-              {link.name}
-            </Link>
-          ))}
-          <div className="pt-4 border-t border-white/10 flex flex-col space-y-4">
-            <button className="text-gray-400 hover:text-white text-left font-medium">Sign In</button>
-            <Link
-              href="/dashboard"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block w-full text-center px-6 py-3 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              Get Started
-            </Link>
-          </div>
-        </div>
-      </div>
-    </nav>
+      </nav>
+    </>
   );
 }
